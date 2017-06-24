@@ -16,9 +16,10 @@ const data = {
 
 gulp.task('concatScript', () => {
    return gulp.src([
-        'node_modules/jquery/dist/jquery.js',
-        'node_modules/semantic-ui/dist/semantic.js',
-        'js/app.js'
+        'app/vendor/foundation/jquery.js',
+        'app/vendor/foundation/what-input.js',
+        'app/vendor/foundation/foundation.min.js',
+        'app/js/app.js'
     ])
     .pipe(concat('app.js'))
     .pipe(gulp.dest('app/js'));
@@ -44,7 +45,7 @@ gulp.task('compileSass', () => {
 })
 
 gulp.task('concatStyle', ['compileSass'],() => {
-    return gulp.src(['node_modules/semantic-ui/dist/semantic.css','app/css/style.css'])
+    return gulp.src(['app/vendor/foundation/foundation.min.css','app/css/style.css'])
                 .pipe(concat('style.css'))
                 .pipe(gulp.dest('app/css'))
                 .pipe(browserSync.stream());

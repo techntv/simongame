@@ -9,32 +9,61 @@
     <link rel="stylesheet" href="css/style.css">
   </head>
   <body>
-      <nav>
-        <div class="ui secondary  menu">
-  <a class="active item">
-    Home
-  </a>
-  <a class="item">
-    Messages
-  </a>
-  <a class="item">
-    Friends
-  </a>
-  <div class="right menu">
-    <div class="item">
-      <div class="ui icon input">
-        <input type="text" placeholder="Search...">
-        <i class="search link icon"></i>
-      </div>
-    </div>
-    <a class="ui item">
-      Logout
-    </a>
-  </div>
-</div>
-      </nav>
- 
-    
+      <div class="row"> 
+        <div class="column medium-8 medium-offset-2 text-center">
+            <h2 class="title-game">Simon Game</h2>
+
+            <div class="row">
+                <div class="column medium-6 medium-offset-3">
+                  <div class="control-game">
+                    <div class="row">
+                      <div class="column medium-6 text-right">
+                          <button class="button alert">Start</button>
+                      </div>
+                      <div class="column medium-6">
+                        <div class="switch large text-left">
+                          <input class="switch-input" id="yes-no" type="checkbox" name="exampleSwitch">
+                          <label class="switch-paddle" for="yes-no">                 
+                          <span class="switch-active" aria-hidden="true">ON</span>
+                          <span class="switch-inactive" aria-hidden="true">OFF</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>   
+                  </div>
+                </div>       
+              
+                            
+            </div> 
+
+            <div class="row">
+              <div class="column medium-6 medium-offset-3">
+                  <div class="round-game">
+                      <p>Round: <span id='roundgame'>2</span></p>
+                  </div>
+              </div>
+            </div>
+             
+
+            <div class="box-game text-center">
+              <div class="row">
+                <div class="column medium-12">
+                  <div class="rowbox">
+                      <div class="box1" id="b1"></div>
+                      <div class="box2" id="b2"></div>
+                  </div>
+                  
+                </div>
+                <div class="column medium-12">
+                  <div class="rowbox">
+                    <div class="box3" id="b3"></div>
+                    <div class="box4" id="b4"></div>
+                  </div>                    
+                </div>                
+              </div>
+            </div>
+        </div>  
+      </div>  
     
     <script src="js/app.min.js"></script>
   </body>
