@@ -12,6 +12,14 @@ import webpack2      from 'webpack';
 import named         from 'vinyl-named';
 import browser  from 'browser-sync';
 
+import metalsmith from 'gulp-metalsmith';
+import metalsmithLayouts from 'metalsmith-layouts';
+import metalsmithMarkdown from 'metalsmith-markdown';
+import metalsmithMatters from 'metalsmith-matters';
+import metalsmithCollections from 'metalsmith-collections';
+import metalsmithPath from 'metalsmith-paths';
+import Handlebars from 'handlebars';
+require('./src/helpers/handlebars-helper.js')(Handlebars);
 
 // Load all Gulp plugins into one variables - lazy load
 const $ = plugins();
@@ -28,12 +36,20 @@ let webpackConfig = {
             test: /\.js$/,
             use: [
                 {
-                    loaders: 'babel-loader'
+                    loader: 'babel-loader'
                 }
             ]
         }
     ]
 }
+
+// Build the "dist" folder by running all of the below tasks
+gulp.task('build',
+ gulp.series(clean, gulp.parallel(pages, sass, javascript, images, copy), styleGuide));
+
+// Build the site, run the server, and watch for file changes
+gulp.task('default',
+  gulp.series('build', server, watch));
 
 function loadConfig(){
     let ymlFile = fs.readFileSync('config.yml', 'utf8');
@@ -46,6 +62,14 @@ function clean(done) {
     rimraf(PATHS.dist, done);
 }
 
+// Generate a style guide from the Markdown content and HTML template in styleguide/
+function styleGuide(done) {
+  sherpa('src/styleguide/index.md', {
+    output: PATHS.dist + '/styleguide.html',
+    template: 'src/styleguide/template.html'
+  }, done);
+}
+
 // Copy files out of the assets folder
 // This task skips over the "img", "js", and "scss" folders, which are parsed separately
 function copy(){
@@ -54,8 +78,60 @@ function copy(){
 }
 
 // Copy page templates into finished HTML files
-function pages(){
+function pages() {
+  return gulp.src('src/pages/**')
+    .pipe(metalsmith({
+      // Metalsmith's root directory, for example for locating templates, defaults to CWD 
+      root: __dirname,
+      // Files to exclude from the build 
+      ignore: ['src/*.tmp'],
+      // Parsing frontmatter, defaults to true 
+      frontmatter: false,
+      // Metalsmith plugins to use: 
+      source: '/src/pages',
+      clean: false,
 
+      destination: '/dist',
+
+      use: [
+
+        metalsmithPath({
+          "property": "path"
+        }),
+        metalsmithMatters({
+          '_enable': true,
+          'delims': ['---json', '---'],
+          'options': {
+            'lang': 'json'
+          }
+        }),
+        metalsmithMarkdown({
+          '_enable': true,
+          'smartypants': true,
+          'smartLists': true,
+          'gfm': true,
+          'tables': true
+        }),
+        metalsmithLayouts({
+          'engine': 'handlebars',
+          'directory': 'src/layouts/',
+          'partials': 'src/layouts/partials/'
+        }),
+        metalsmithCollections({
+          posts: 'pages/*.md'
+        })
+
+      ],
+      // Initial Metalsmith metadata, defaults to {} 
+      metadata: {
+        site_title: 'Sample static site'
+      },
+      // List of JSON files that contain page definitions 
+      // true means "all JSON files", see the section below 
+      json: ['src/pages.json']
+
+    }))
+    .pipe(gulp.dest(PATHS.dist));
 }
 
 
