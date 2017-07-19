@@ -1,85 +1,129 @@
-'use strict'
+'use strict';
 
-import gulp         from 'gulp'
-import concat       from 'gulp-concat'
-import uglify       from 'gulp-uglify'
-import rename       from 'gulp-rename'
-import sass         from 'gulp-sass'
-import sourcemaps   from 'gulp-sourcemaps'
-import autoprefixer from 'gulp-autoprefixer'
-import del          from 'del'
-import browserSync  from 'browser-sync'
-import minify       from 'gulp-minify'
-const data = {
+import plugins      from 'gulp-load-plugins';
+import yargs        from 'yargs';
+import rimraf       from 'rimraf'; // remove folder
+import gulp         from 'gulp';
+import sherpa       from 'style-sherpa';
+import yaml         from 'js-yaml';
+import fs           from 'fs';
+import webpackStream from 'webpack-stream';
+import webpack2      from 'webpack';
+import named         from 'vinyl-named';
+import browser  from 'browser-sync';
 
-};
 
-gulp.task('concatScript', () => {
-   return gulp.src([
-        'app/vendor/foundation/jquery.js',
-        'app/vendor/foundation/what-input.js',
-        'app/vendor/foundation/foundation.min.js',
-        'app/js/app.js'
-    ])
-    .pipe(concat('app.js'))
-    .pipe(gulp.dest('app/js'));
-})
+// Load all Gulp plugins into one variables - lazy load
+const $ = plugins();
 
-gulp.task('minifyScript',['concatScript'], () => {
-   return gulp.src('app/js/app.js')
-    .pipe(minify({
-        ext: {
-            min:'.js'
+// Check for --production flag in terminal
+const PRODUCTION = !!(yargs.argv.production);
+
+// Load settings from config.yml
+const { COMPATIBILITY, PORT, UNCSS_OPTIONS, PATHS } = loadConfig();
+
+let webpackConfig = {
+    rules: [
+        {
+            test: /\.js$/,
+            use: [
+                {
+                    loaders: 'babel-loader'
+                }
+            ]
         }
-    }))
-    .pipe(gulp.dest('dist/js'));
-})
+    ]
+}
 
-gulp.task('compileSass', () => {
-   return gulp.src('app/scss/style.scss')
-    .pipe(sourcemaps.init())
-    .pipe(sass())    
-    .pipe(autoprefixer(['last 2 versions','> 5%','Firefox ESR']))
-    .pipe(sourcemaps.write('./'))    
-    .pipe(gulp.dest('app/css'));    
-})
+function loadConfig(){
+    let ymlFile = fs.readFileSync('config.yml', 'utf8');
+    return yaml.load(ymlFile);
+}
 
-gulp.task('concatStyle', ['compileSass'],() => {
-    return gulp.src(['app/vendor/foundation/foundation.min.css','app/css/style.css'])
-                .pipe(concat('style.css'))
-                .pipe(gulp.dest('app/css'))
-                .pipe(browserSync.stream());
-})
+// Delete the "dist" folder
+// This happens every time a build starts
+function clean(done) {
+    rimraf(PATHS.dist, done);
+}
 
-gulp.task('clean', () => {
-    del.sync([
-        'dist'
-    ]);
-})
-gulp.task('watch', ['build'],() => {
-    browserSync.init({
-        server: './app'
+// Copy files out of the assets folder
+// This task skips over the "img", "js", and "scss" folders, which are parsed separately
+function copy(){
+    return gulp.src(PATHS.assets)
+               .pipe(gulp.dest(PATHS.dist + '/assets'));
+}
+
+// Copy page templates into finished HTML files
+function pages(){
+
+}
+
+
+// Compile Sass into CSS
+// In production, the CSS is compressed
+function sass(){
+    return gulp.src('src/assets/scss/app.scss')
+               .pipe($.sourcemaps.init())
+               .pipe($.sass({
+                   includePaths: PATHS.sass
+               })
+                .on('error', $.sass.logError))
+               .pipe($.autoprefixer({
+                   browsers: COMPATIBILITY
+               }))
+               .pipe($.if(PRODUCTION, $.cleanCss({ compability: 'ie9 '})))
+               .pipe($.if(!PRODUCTION, $.sourcemaps.write()))
+               .pipe(gulp.dest(PATHS.dist + '/assets/css'))
+               .pipe(browser.reload({ stream: true }))
+}
+
+// Combine JavaScript into one file
+// In production, the file is minified
+function javascript() {
+    return gulp.src(PATHS.entries)
+               .pipe(named())
+               .pipe($.sourcemaps.init())
+               .pipe(webpackStream({module: webpackConfig}, webpack2)) // Read ES6 - Convert ES6 to ES5
+               .pipe($.if(PRODUCTION, $.uglify()
+                    .on('error', function(e){
+                        console.log(e);
+                    })
+                ))
+                .pipe($.if(!PRODUCTION, $.sourcemaps.write()))
+                .pipe(gulp.dest(PATHS.dist + '/assets/js'));
+}
+
+// Copy images to the "dist" folder
+// In production, the images are compressed
+function images(){
+    return gulp.src('src/assets/img/**/*')
+               .pipe($.if(PRODUCTION, $.imagemin({
+                   progressive: true
+               })))
+               .pipe(gulp.dest(PATHS.dist + '/assets/img'))
+}
+
+// Start a server with BrowserSync to preview the site in
+function server(done){
+    browser.init({
+        server: PATHS.dist,
+        port: PORT
     });
-    gulp.watch('app/scss/**/*.scss', ['concatStyle']);
-    gulp.watch('app/js/app.js',['concatScript']);
-    gulp.watch("app/*.html").on('change', browserSync.reload);
-})
+    done();
+}
 
-gulp.task('build', ['concatScript','concatStyle']);
+// Reload the browser with BrowserSync
+function reload(done) {
+    browser.reload();
+    done();
+}
 
-gulp.task('build-prod', ['minifyScript','concatStyle'],() => {
-    return gulp.src([
-        'app/index.html',
-        'app/css/style.css',
-        'app/js/app.min.js',
-        'app/images/**',
-        'app/fonts/**'],
-        { base: './app'})
-                .pipe(gulp.dest('dist'));
-});
-
-gulp.task('serve', ['watch']);
-
-gulp.task('default', ['clean'], ()=> {
-    gulp.start('build');
-});
+// Watch for changes to static assets, pages, Sass, and JavaScript
+function watch() {
+    gulp.watch(PATHS.assets, copy);
+    gulp.watch('src/pages/**/*.html').on('all', gulp.series(pages, browser.reload));
+    gulp.watch('src/{layouts,partials}/**/*.html').on('all', gulp.series(pages, browser.reload));
+    gulp.watch('src/assets/scss/**/*.scss').on('all', sass);
+    gulp.watch('src/assets/js/**/*.js').on('all', gulp.series(javascript, browser.reload));
+    gulp.watch('src/asets/img/**/*').on('all', gulp.series(images, browser.reload));    
+}

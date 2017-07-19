@@ -1,0 +1,30 @@
+# localhost port
+PORT: 8088
+
+# Autoprefixer for Css
+COMPATIBILITY:
+  - "last 2 version"
+  - "ie >= 9"
+  - "ios >= 7"
+
+# UnCss will use these settings
+UNCSS_OPTIONS:
+  html:
+    -"src/**/*.html"
+  ignore:
+    -!!js/regexp .foundation-mq
+    -!!js/regexp ^\.is-.*
+
+#Gulp reference
+PATHS:
+# Path to dist folder
+  dist: "dist"
+  # Paths to static assets that aren't images, CSS, or JavaScript
+  assets:
+    - "src/assets/**/*"
+    - "!src/assets/{img,js,scss}/**/*"
+  sass:
+    - "node_modules/foundation-sites/scss"
+    - "node_modules/motion-ui/src"
+  entries:
+    - "src/assets/js/app.js"
